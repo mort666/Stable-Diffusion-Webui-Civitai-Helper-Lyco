@@ -13,6 +13,7 @@ jobs:
     steps:
       - uses: tgymnich/fork-sync@v1.8
         with:
+          retries: 0   
           owner: butaixianran
           base: main
           head: main
