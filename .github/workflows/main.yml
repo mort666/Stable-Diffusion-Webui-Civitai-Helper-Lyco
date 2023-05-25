@@ -15,6 +15,7 @@ jobs:
         with:
           retries: 0   
           owner: butaixianran
+          repo: Stable-Diffusion-Webui-Civitai-Helper
           base: main
           head: main
           token: ${{ secrets.PERSONAL_TOKEN }}
