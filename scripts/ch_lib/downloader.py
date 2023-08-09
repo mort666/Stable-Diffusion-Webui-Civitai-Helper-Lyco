@@ -3,7 +3,6 @@ import sys
 import requests
 import os
 from . import util
-from logger import logger
 import time
 import subprocess
 
