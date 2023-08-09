@@ -3,6 +3,9 @@ import sys
 import requests
 import os
 from . import util
+from logger import logger
+import time
+import subprocess
 
 
 dl_ext = ".downloading"
@@ -76,40 +79,32 @@ def dl(url, folder, filename, filepath):
 
 
     util.printD(f"Downloading to temp file: {dl_file_path}")
+    pid_num = os.fork()
+    if pid_num!=0:
+        while not os.path.exists(file_path):
+            time.sleep(30)
+            if os.path.exists(dl_file_path):
+                downloaded_size = os.path.getsize(dl_file_path)
+                util.printD(f"Downloaded size: {downloaded_size}/{total_size}")
+        return file_path
 
     # check if downloading file is exsited
-    downloaded_size = 0
-    if os.path.exists(dl_file_path):
-        downloaded_size = os.path.getsize(dl_file_path)
-
-    util.printD(f"Downloaded size: {downloaded_size}")
-
-    # create header range
-    headers = {'Range': 'bytes=%d-' % downloaded_size}
-    headers['User-Agent'] = util.def_headers['User-Agent']
-
-    # download with header
-    r = requests.get(url, stream=True, verify=False, headers=headers, proxies=util.proxies)
-
-    # write to file
-    with open(dl_file_path, "ab") as f:
-        for chunk in r.iter_content(chunk_size=1024):
-            if chunk:
-                downloaded_size += len(chunk)
-                f.write(chunk)
-                # force to write to disk
-                f.flush()
-
-                # progress
-                progress = int(50 * downloaded_size / total_size)
-                sys.stdout.reconfigure(encoding='utf-8')
-                sys.stdout.write("\r[%s%s] %d%%" % ('-' * progress, ' ' * (50 - progress), 100 * downloaded_size / total_size))
-                sys.stdout.flush()
-
-    print()
-
-    # rename file
-    os.rename(dl_file_path, file_path)
-    util.printD(f"File Downloaded to: {file_path}")
-    return file_path
-
+    log_file = open(f'{dl_file_path}.txt', 'w')
+    while not os.path.exists(file_path):
+        downloaded_size = 0
+        if os.path.exists(dl_file_path):
+            downloaded_size = os.path.getsize(dl_file_path)
+        try:
+            subprocess.run(['wget', '-c', url, '-O', dl_file_path], timeout=120, stdout=log_file, stderr=log_file)
+        except Exception as e:
+            pass
+        log_file.write(f'{dl_file_path} downloaded')
+        if os.path.exists(dl_file_path):
+            downloaded_size = os.path.getsize(dl_file_path)
+        if downloaded_size>total_size-1:
+            log_file.write(f'{downloaded_size}/{total_size}')
+            os.rename(dl_file_path, file_path)
+            log_file.close()
+            util.printD(f"Downloaded size: {downloaded_size}")
+            util.printD(f"File Downloaded to: {file_path}")
+            os._exit(0)

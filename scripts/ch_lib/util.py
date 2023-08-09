@@ -4,6 +4,7 @@ import io
 import hashlib
 import requests
 import shutil
+import subprocess
 
 
 version = "1.6.4"
@@ -49,16 +50,7 @@ def gen_file_sha256(filname):
 def download_file(url, path):
     printD("Downloading file from: " + url)
     # get file
-    r = requests.get(url, stream=True, headers=def_headers, proxies=proxies)
-    if not r.ok:
-        printD("Get error code: " + str(r.status_code))
-        printD(r.text)
-        return
-    
-    # write to file
-    with open(os.path.realpath(path), 'wb') as f:
-        r.raw.decode_content = True
-        shutil.copyfileobj(r.raw, f)
+    subprocess.run(f'wget -T 15 -w 5 -c {url} -O {path}', shell=True, timeout=10)
 
     printD("File downloaded to: " + path)
 
