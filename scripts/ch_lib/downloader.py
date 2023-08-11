@@ -6,6 +6,8 @@ from . import util
 import time
 import subprocess
 
+import tqdm
+
 
 dl_ext = ".downloading"
 
@@ -78,32 +80,44 @@ def dl(url, folder, filename, filepath):
 
 
     util.printD(f"Downloading to temp file: {dl_file_path}")
-    pid_num = os.fork()
-    if pid_num!=0:
-        while not os.path.exists(file_path):
-            time.sleep(30)
-            if os.path.exists(dl_file_path):
-                downloaded_size = os.path.getsize(dl_file_path)
-                util.printD(f"Downloaded size: {downloaded_size}/{total_size}")
-        return file_path
 
-    # check if downloading file is exsited
-    log_file = open(f'{dl_file_path}.txt', 'w')
-    while not os.path.exists(file_path):
-        downloaded_size = 0
-        if os.path.exists(dl_file_path):
-            downloaded_size = os.path.getsize(dl_file_path)
-        try:
-            subprocess.run(['wget', '-c', url, '-O', dl_file_path], timeout=120, stdout=log_file, stderr=log_file)
-        except Exception as e:
-            pass
-        log_file.write(f'{dl_file_path} downloaded')
-        if os.path.exists(dl_file_path):
-            downloaded_size = os.path.getsize(dl_file_path)
-        if downloaded_size>total_size-1:
-            log_file.write(f'{downloaded_size}/{total_size}')
-            os.rename(dl_file_path, file_path)
-            log_file.close()
-            util.printD(f"Downloaded size: {downloaded_size}")
-            util.printD(f"File Downloaded to: {file_path}")
-            os._exit(0)
+    try:
+        get_single_file(url, dl_file_path)
+    except Exception as e:
+        print("Download Error")
+        print(e)
+        return ""
+    
+    os.rename(dl_file_path, file_path)
+    util.printD(f"File Downloaded to: {file_path}")
+    return file_path
+
+def get_single_file(url, output_folder, start_from_scratch=False):
+        s = requests.Session()
+        filename = Path(url.rsplit('/', 1)[1])
+        output_path = output_folder / filename
+        headers = {}
+        mode = 'wb'
+        if output_path.exists() and not start_from_scratch:
+
+            # Check if the file has already been downloaded completely
+            r = s.get(url, stream=True, timeout=10)
+            total_size = int(r.headers.get('content-length', 0))
+            if output_path.stat().st_size >= total_size:
+                return
+
+            # Otherwise, resume the download from where it left off
+            headers = {'Range': f'bytes={output_path.stat().st_size}-'}
+            mode = 'ab'
+
+        with s.get(url, stream=True, headers=headers, timeout=10) as r:
+            r.raise_for_status()  # Do not continue the download if the request was unsuccessful
+            total_size = int(r.headers.get('content-length', 0))
+            block_size = 1024 * 1024  # 1MB
+            with open(output_path, mode) as f:
+                with tqdm.tqdm(total=total_size, unit='iB', unit_scale=True, bar_format='{l_bar}{bar}| {n_fmt:6}/{total_fmt:6} {rate_fmt:6}') as t:
+                    count = 0
+                    for data in r.iter_content(block_size):
+                        t.update(len(data))
+                        f.write(data)
+                        
