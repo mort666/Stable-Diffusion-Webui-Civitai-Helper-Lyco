@@ -5,7 +5,7 @@ import os
 from . import util
 import time
 import subprocess
-
+from pathlib import Path
 import tqdm
 
 
@@ -95,7 +95,7 @@ def dl(url, folder, filename, filepath):
 def get_single_file(url, output_folder, start_from_scratch=False):
         s = requests.Session()
         filename = Path(url.rsplit('/', 1)[1])
-        output_path = output_folder / filename
+        output_path = output_folder 
         headers = {}
         mode = 'wb'
         if output_path.exists() and not start_from_scratch:
